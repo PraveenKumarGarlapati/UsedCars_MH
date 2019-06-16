@@ -197,5 +197,31 @@ colnames(dt_pred) <- "Price"
 
 write_xlsx(dt_pred, "dt_pred_.xlsx")
 
+##Adding price of fuel and getting running cost per kilometre
+
+train_t <- fulldf%>%
+  filter(status == "train")%>%
+  select(Kilometers_Driven, Owner_Type, V1, V2, Mileage_new, avgnewpriceV1V2, age, Fuel_Type, Price)
+
+train_t$Owner_Type <- as.factor(train_t$Owner_Type)
+train_t$Mileage_new[is.na(train_t$Mileage_new)] = mean(train_t$Mileage_new, na.rm = TRUE)
+
+##
+colSums(is.na(train_t))
+train_t%>%
+  count(Fuel_Type)
 
 
+##
+
+##
+#Taking units of Mileage
+
+mileage_brkup = str_split_fixed(fulldf$Mileage, " ",2)
+mileage_brkup <- as.data.frame(mileage_brkup)
+
+colnames(mileage_brkup) <- c("M_brkup_1","M_brkup_2")
+fulldf <- bind_cols(fulldf, mileage_brkup)
+
+fulldf%>%
+  count(Fuel_Type, M_brkup_2)
