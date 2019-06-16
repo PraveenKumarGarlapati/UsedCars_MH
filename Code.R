@@ -162,4 +162,40 @@ lm_pred <- predict(lm, test_t)
 lm_pred <- lm_pred%>%as.data.frame()
 colnames(lm_pred) <- "Price"
 
+lm_pred <- lm_pred%>%mutate(Price = abs(Price))
 write_xlsx(lm_pred, "lm_pred.xlsx")
+
+#######
+#Replacing all the Nonmatching V2 Values as well with relavant ones
+Data_Test%>%
+  filter(!Name %in% Data_Train$Name)
+
+test_t%>%
+  filter(!V2 %in% train_t$V2)
+
+test_t$V2[test_t$V2 == "Flying"] = "Continental"
+test_t$V2[test_t$V2 == "Land"] = "Fortuner"
+test_t$V2[test_t$V2 == "MU"] = "MUX"
+test_t$V2[test_t$V2 == "370Z"] = "Terrano"
+test_t$V2[test_t$V2 == "Abarth"] = "Punto"
+
+lm = lm(Price ~ ., train_t[ ,-6])
+lm_pred <- predict(lm, test_t)
+
+lm_pred <- lm_pred%>%as.data.frame()
+colnames(lm_pred) <- "Price"
+
+#Took absolute values of predictions
+write_xlsx(lm_pred, "lm_pred_w_V2.xlsx")
+
+#DT
+dt = ctree(Price ~ ., train_t[ ,-6])
+dt_pred <- predict(dt, test_t)
+
+dt_pred <- as.data.frame(dt_pred)
+colnames(dt_pred) <- "Price"
+
+write_xlsx(dt_pred, "dt_pred_.xlsx")
+
+
+
