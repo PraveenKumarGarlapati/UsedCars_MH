@@ -179,7 +179,15 @@ test_t$V2[test_t$V2 == "MU"] = "MUX"
 test_t$V2[test_t$V2 == "370Z"] = "Terrano"
 test_t$V2[test_t$V2 == "Abarth"] = "Punto"
 
-lm = lm(Price ~ ., train_t[ ,-6])
+test_t$V2[test_t$V2 == "Motors"] = "800"
+test_t$V2[test_t$V2 == "1.4Gsi"] = "800"
+
+test_t$V1[test_t$V1 == "Hindustan"] = "Maruti"
+test_t$V1[test_t$V1 == "OpelCorsa"] = "Maruti"
+
+
+
+lm = lm(Price ~ ., train_t[ ,-c(5,6)])
 lm_pred <- predict(lm, test_t)
 
 lm_pred <- lm_pred%>%as.data.frame()
@@ -199,22 +207,41 @@ write_xlsx(dt_pred, "dt_pred_.xlsx")
 
 ##Adding price of fuel and getting running cost per kilometre
 
+fulldf$rateperunit[is.na(fulldf$rateperunit)] = 2
+
 train_t <- fulldf%>%
   filter(status == "train")%>%
-  select(Kilometers_Driven, Owner_Type, V1, V2, Mileage_new, avgnewpriceV1V2, age, Fuel_Type, Price)
+  select(Kilometers_Driven, Owner_Type, V1, V2, Mileage_new, avgnewpriceV1V2, age, Fuel_Type, rateperunit, Price)
+train_t%>%glimpse()
 
 train_t$Owner_Type <- as.factor(train_t$Owner_Type)
 train_t$Mileage_new[is.na(train_t$Mileage_new)] = mean(train_t$Mileage_new, na.rm = TRUE)
+train_t$Fuel_Type <- as.factor(train_t$Fuel_Type)
 
-##
-colSums(is.na(train_t))
-train_t%>%
-  count(Fuel_Type)
+test_t <- fulldf%>%
+  filter(status == "test")%>%
+  select(Kilometers_Driven, Owner_Type, V1, V2, Mileage_new, avgnewpriceV1V2, age, Fuel_Type, rateperunit, Price)
+test_t%>%glimpse()
+
+test_t$Owner_Type <- as.factor(test_t$Owner_Type)
+test_t$Mileage_new[is.na(test_t$Mileage_new)] = mean(test_t$Mileage_new, na.rm = TRUE)
+test_t$Fuel_Type <- as.factor(test_t$Fuel_Type)
+
+#LM
 
 
-##
+#DT
+dt = ctree(Price ~ ., train_t[ ,-c(5,6)])
+dt_pred <- predict(dt, test_t)
 
-##
+dt_pred <- as.data.frame(dt_pred)
+colnames(dt_pred) <- "Price"
+
+write_xlsx(dt_pred, "dt_pred_.xlsx")
+
+
+
+
 #Taking units of Mileage
 
 mileage_brkup = str_split_fixed(fulldf$Mileage, " ",2)
@@ -223,5 +250,14 @@ mileage_brkup <- as.data.frame(mileage_brkup)
 colnames(mileage_brkup) <- c("M_brkup_1","M_brkup_2")
 fulldf <- bind_cols(fulldf, mileage_brkup)
 
-fulldf%>%
-  count(Fuel_Type, M_brkup_2)
+fulldf$M_brkup_11 <- as.numeric(fulldf$M_brkup_11)
+rate <- read_clip_tbl()
+
+fulldf <- fulldf%>%
+  left_join(rate)
+
+fulldf <- fulldf%>%
+  mutate(rateperunit = Rate/M_brkup_11)
+
+
+
