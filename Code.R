@@ -128,6 +128,21 @@ fulldf%>%dim()
 fulldf <- fulldf%>%
   left_join(new1, by = c("V1","V2"))
 
+
+fulldf$V2[fulldf$V2 == "Flying"] = "Continental"
+fulldf$V2[fulldf$V2 == "Land"] = "Fortuner"
+fulldf$V2[fulldf$V2 == "MU"] = "MUX"
+fulldf$V2[fulldf$V2 == "370Z"] = "Terrano"
+fulldf$V2[fulldf$V2 == "Abarth"] = "Punto"
+
+fulldf$V2[fulldf$V2 == "Motors"] = "800"
+fulldf$V2[fulldf$V2 == "1.4Gsi"] = "800"
+
+fulldf$V1[fulldf$V1 == "Hindustan"] = "Maruti"
+fulldf$V1[fulldf$V1 == "OpelCorsa"] = "Maruti"
+
+
+
 train_t <- fulldf%>%
   filter(status == "train")%>%
   select(Kilometers_Driven, Owner_Type, V1, V2, Mileage_new, avgnewpriceV1V2, age, Price)
@@ -208,6 +223,22 @@ write_xlsx(dt_pred, "dt_pred_.xlsx")
 ##Adding price of fuel and getting running cost per kilometre
 
 fulldf$rateperunit[is.na(fulldf$rateperunit)] = 2
+fulldf$rateperunit[which(fulldf$rateperunit==Inf)] = NA
+
+#Removing Inf values in rateperunit col
+fulldf%>%
+  filter(is.na(rateperunit))%>%
+  count(Fuel_Type)
+
+fulldf%>%
+  group_by(Fuel_Type)%>%
+  summarise(mean(rateperunit,na.rm = T))
+
+fulldf$rateperunit[is.na(fulldf$rateperunit)] = 4
+
+####
+
+
 
 train_t <- fulldf%>%
   filter(status == "train")%>%
@@ -227,7 +258,18 @@ test_t$Owner_Type <- as.factor(test_t$Owner_Type)
 test_t$Mileage_new[is.na(test_t$Mileage_new)] = mean(test_t$Mileage_new, na.rm = TRUE)
 test_t$Fuel_Type <- as.factor(test_t$Fuel_Type)
 
+# fulldf$rateperunit[which(fulldf$rateperunit==Inf)] = NA
+# test_t$rateperunit[which(test_t$rateperunit==Inf)] = NA
+
 #LM
+lm = lm(Price ~ . , train_t[ ,-c(5,6)])
+lm_pred <- predict(lmodel, test)
+
+lm_pred <- lm_pred%>%as.data.frame()
+colnames(lm_pred) <- "Price"
+
+#Took absolute values of predictions
+write_xlsx(lm_pred, "lm_pred_all.xlsx")
 
 
 #DT
@@ -239,8 +281,27 @@ colnames(dt_pred) <- "Price"
 
 write_xlsx(dt_pred, "dt_pred_.xlsx")
 
+#Not able to run this dtree
+
+library(rpart)
+library(rpart.plot)
+dtfit <- rpart(Price~., data = train_t[ ,-c(6)], method = 'anova')
+
+# test_t_m <- as.matrix(test_t)
+
+dt_pred <- predict(dtfit, test_t)
+
+dt_pred <- as.data.frame(dt_pred)
+colnames(dt_pred) <- "Price"
+
+write_xlsx(dt_pred, "dt_pred_rateperunit_wmil.xlsx")
 
 
+##
+train_t%>%glimpse()
+test_t%>%glimpse()
+test_t%>%
+  filter(Kilometers_Driven %in% train_t$Kilometers_Driven)
 
 #Taking units of Mileage
 
@@ -250,7 +311,7 @@ mileage_brkup <- as.data.frame(mileage_brkup)
 colnames(mileage_brkup) <- c("M_brkup_1","M_brkup_2")
 fulldf <- bind_cols(fulldf, mileage_brkup)
 
-fulldf$M_brkup_11 <- as.numeric(fulldf$M_brkup_11)
+fulldf$M_brkup_11 <- as.numeric(fulldf$M_brkup_1)
 rate <- read_clip_tbl()
 
 fulldf <- fulldf%>%
@@ -259,5 +320,106 @@ fulldf <- fulldf%>%
 fulldf <- fulldf%>%
   mutate(rateperunit = Rate/M_brkup_11)
 
+
+###############3
+
+
+
+train <- fulldf%>%
+  filter(status == "train")%>%
+  select(V1,V2,
+         Location,
+         age,
+         Kilometers_Driven,
+         Fuel_Type,
+         rateperunit,
+         Transmission,
+         Owner_Type,
+         Mileage_new,
+         engine_new,
+         Power_new,
+         Seats,
+         Price)
+
+test <- fulldf%>%
+  filter(status == "test")%>%
+  select(V1,V2,
+         Location,
+         age,
+         Kilometers_Driven,
+         Fuel_Type,
+         rateperunit,
+         Transmission,
+         Owner_Type,
+         Mileage_new,
+         engine_new,
+         Power_new,
+         Seats,
+         Price)
+
+glimpse(train)
+dim(test)
+
+lmodel <- lm(Price ~ ., data = train)
+lm_pred <- predict(lmodel, test)
+lm_pred <- as.data.frame(lm_pred)
+colnames(lm_pred) <- "Price"
+bind_cols(test, lm_pred)%>%View()
+lm_pred <- lm_pred%>%
+  mutate(Price = abs(Price))
+# lm_pred$Price[is.na(lm_pred$Price)] <- mean(lm_pred$Price, na.rm = T)
+
+colSums(is.na(fulldf))
+colSums(is.na(train))
+
+fulldf%>%
+  filter(is.na(engine_new1))%>%
+  count(V1,V2)
+
+fulldf%>%
+  filter(is.na(Power_new1))%>%
+  count(V1,V2)
+
+fulldf%>%
+  filter(is.na(Seats1))%>%
+  count(V1,V2)
+
+
+fulldf <- fulldf%>%
+  group_by(V1,V2)%>%
+  mutate(engine_new1 = ifelse(is.na(engine_new), mean(engine_new, na.rm = T), engine_new))
+
+fulldf <- fulldf%>%
+  group_by(V1,V2)%>%
+  mutate(Power_new1 = ifelse(is.na(Power_new), mean(Power_new, na.rm = T), Power_new))
+
+fulldf <- fulldf%>%
+  group_by(V1,V2)%>%
+  mutate(Seats1 = ifelse(is.na(Seats), mean(Seats, na.rm = T), Seats))
+
+colSums(is.na(fulldf))
+
+fulldf_bckup <- fulldf
+
+fulldf$engine_new[is.na(fulldf$engine_new)] <- mean(fulldf$engine_new, na.rm = T)
+fulldf$Power_new[is.na(fulldf$Power_new)] <- mean(fulldf$Power_new, na.rm = T)
+fulldf$rateperunit[is.na(fulldf$rateperunit)] <- mean(fulldf$rateperunit, na.rm = T)
+fulldf$Seats[is.na(fulldf$Seats)] <- mean(fulldf$Seats, na.rm = T)
+fulldf$Mileage_new[is.na(fulldf$Mileage_new)] <- 30
+
+
+glimpse(fulldf)
+fulldf[ ,c(1:2,5:10,12,14,26)] <- map(fulldf[ ,c(1:2,5:10,12,14,26)], as.factor)
+
+dt <- ctree(Price ~ ., train)
+dt_pred <- predict(dt, test)
+dt_pred <- as.data.frame(dt_pred)
+colnames(dt_pred) <- "Price"
+bind_cols(test, lm_pred)%>%View()
+
+write_xlsx(dt_pred, "dt_all.xlsx")
+
+
+#scale all the numeric columns and run the model again. 
 
 
