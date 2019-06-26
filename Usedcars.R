@@ -502,7 +502,7 @@ test_0 <- as.data.frame(predict(b, test))
 #age, km drive, rateper, mil_1, engine_new, powe_new, seats, price
 
 fulldf_rest <- fulldf%>%
-  select(age, Kilometers_Driven, rateperunit, mil_1, engine_new, Power_new, Seats, Price)
+  select(age, Kilometers_Driven, rateperunit, mil_1, engine_new, Power_new, Seats, Price, status)
 
 fulldf_few[ ,c(3,4,7,9,10)] <- map(fulldf_few[ ,c(3,4,7,9,10)], as.factor)%>%as.data.frame()
 
@@ -516,4 +516,15 @@ colSums(is.na(fulldf_ohe))
 glimpse(fulldf_ohe)
 colnames(fulldf_ohe) <- str_replace_all(colnames(fulldf_ohe), "[^[:alnum:]]", "" )
 
+#Work more on it
+colnames(fulldf_ohe)[68] <- "V2BRV2"
+colnames(fulldf_ohe)[233] <- "V2WRV2"
+
+fulldf_ohe$KilometersDriven <- as.numeric(as.character(fulldf_ohe$KilometersDriven))
+
+
 write_xlsx(fulldf_ohe, "fulldf_Onehotencoded.xlsx")
+
+train <- fulldf_ohe%>%filter(status == "train")
+
+randomForest(Price~ ., )
